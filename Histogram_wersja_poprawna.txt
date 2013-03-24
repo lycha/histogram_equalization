@@ -1,0 +1,293 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace Histogram
+{
+    class Histogram
+    {
+        int klasa=256;
+        int maxInt;//maksymalna intensywnoœæ
+        int minInt=256;//minimalna intensywnoœæ
+        int zakres = 0;
+        public Histogram()
+        {
+        }
+
+        public Bitmap wyrownajHistogram(Bitmap ob, int kl)
+        {
+            
+            Bitmap wynik = new Bitmap(ob.Width, ob.Height);
+            try
+            {
+                //klasa = kl;
+                maximum(ob);
+                minimum(ob);
+
+                zakres = maxInt - minInt+1;
+
+                int[,] histogram = stworzHistogram(ob);
+
+                double[,] dyst = dystrybuanta(histogram, ob);
+
+                int[,] LUT = LookUpTable(dyst);
+
+                //for (int k = 0; k < 3; k++)
+                //{
+                for (int i = 0; i < ob.Width; i++)
+                {
+                    for (int j = 0; j < ob.Height; j++)
+                    {
+
+                        Color kol = ob.GetPixel(i, j);
+                        int czerw = kol.R;
+                        int ziel = kol.G;
+                        int nieb = kol.B;
+                        int czerwWyr=0;
+                        int zielwWyr=0;
+                        int niebWyr=0;
+
+                        if (czerw < maxInt && czerw > minInt)
+                        {
+                            czerwWyr = LUT[czerw - minInt, 0] * (maxInt + 1) / klasa;
+                        }
+                        if (ziel < maxInt && ziel > minInt)
+                        {
+                            zielwWyr = LUT[ziel - minInt, 1] * (maxInt + 1) / klasa;
+                        }
+                        if (nieb < maxInt && nieb > minInt)
+                        {
+                            niebWyr = LUT[nieb - minInt, 2] * (maxInt + 1) / klasa;
+                        }
+                        //MessageBox.Show(zielwWyr.ToString());
+                        Color nc = Color.FromArgb(kol.A, czerwWyr, zielwWyr, niebWyr);
+                        wynik.SetPixel(i, j, nc);
+
+                    }
+                }
+                //}
+                return wynik;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+                return wynik;
+            }
+        }
+
+        public int[,] stworzHistogram(Bitmap ob)
+        {
+            //int zakres = maxInt - minInt;
+            int[,] hist = new int[zakres, 3];
+            try
+            {
+                int[, ,] tab = new int[ob.Height, ob.Width, 3];
+                tab = czytajPixele(ob);
+                int value;
+
+                for (int k = 0; k < 3; k++)
+                {
+                    for (int i = 0; i < ob.Height; i++)
+                    {
+                        for (int j = 0; j < ob.Width; j++)
+                        {
+                            value = tab[i, j, k];
+
+                            if (value <= maxInt && value >= minInt)
+                            {
+                                hist[value-minInt, k]++;
+                            }
+                        }
+                    }
+                }
+                //MessageBox.Show(hist[200, 2].ToString());
+                return hist;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+                return hist;
+            }
+
+        }
+
+        public int[, ,] czytajPixele(Bitmap ob)
+        {
+            int[, ,] tab = new int[ob.Height, ob.Width, 3];
+            try
+            {
+                for (int i = 0; i < ob.Width; i++)
+                {
+                    for (int j = 0; j < ob.Height; j++)
+                    {
+                        Color cPixel = ob.GetPixel(i, j);
+                        tab[i, j, 0] = cPixel.R;
+                        tab[i, j, 1] = cPixel.G;
+                        tab[i, j, 2] = cPixel.B;
+                    }
+                }
+                return tab;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+                return tab;
+            }
+        }
+
+        public double[,] dystrybuanta(int[,] hist, Bitmap ob)
+        {
+            double[,] dist = new double[zakres, 3];
+            try
+            {
+                int iloscPX = ob.Width * ob.Height;
+                
+                for (int j = 0; j < 3; j++)
+                {
+                    double temp = 0;
+                    for (int i = 0; i < zakres; i++)
+                    {
+                        temp += hist[i, j];
+                        dist[i, j] = temp/iloscPX;
+
+                        //MessageBox.Show("dist[" + i + "," + j + "] " + dist[i, j].ToString());
+                    }
+                }
+
+                return dist;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+                return dist;
+            }
+        }
+
+        public int[,] LookUpTable(double[,] dist)
+        {
+            int[,] LUT = new int[zakres, 3];
+            try
+            {
+
+                double[] distNiezero = new double[3];
+                //MessageBox.Show(dist[0, 0].ToString());
+
+                for (int i = 0; i < zakres; i++)
+                {
+                    if (dist[i, 0] > 0)
+                    {
+                        distNiezero[0] = dist[i, 0];
+                        //MessageBox.Show(distNiezero[0].ToString());
+                        break;
+                    }
+                }
+                for (int i = 0; i < zakres; i++)
+                {
+                    if (dist[i, 1] > 0)
+                    {
+                        distNiezero[1] = dist[i, 1];
+                        //MessageBox.Show(distNiezero[1].ToString());
+                        break;
+                    }
+                }
+                for (int i = 0; i < zakres; i++)
+                {
+                    if (dist[i, 2] > 0)
+                    {
+                        distNiezero[2] = dist[i, 2];
+                        //MessageBox.Show(distNiezero[2].ToString());
+                        break;
+                    }
+                }
+
+                for (int j = 0; j < 3; j++)
+                {
+                    for (int i = 0; i < zakres; i++)
+                    {
+                        LUT[i, j] = (int)(((dist[i, j] - distNiezero[j]) / (1 - distNiezero[j])) * (zakres - 1));
+                        //MessageBox.Show("Lut["+i+","+j+"] "+LUT[i, j].ToString());
+                    }
+                }
+
+                return LUT;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+                return LUT;
+            }
+        }
+
+        public void maximum(Bitmap ob)
+        {
+            try
+            {
+                for (int i = 0; i < ob.Height; i++)
+                {
+                    for (int j = 0; j < ob.Width; j++)
+                    {
+                        Color kol = ob.GetPixel(i, j);
+                        int czerw = kol.R;
+                        int ziel = kol.G;
+                        int nieb = kol.B;
+
+                        if (czerw > maxInt)
+                        {
+                            maxInt = czerw;
+                        }
+                        else if (ziel > maxInt)
+                        {
+                            maxInt = ziel;
+                        }
+                        else if (nieb > maxInt)
+                        {
+                            maxInt = nieb;
+                        }
+
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
+
+        public void minimum(Bitmap ob)
+        {
+            try
+            {
+                for (int i = 0; i < ob.Height; i++)
+                {
+                    for (int j = 0; j < ob.Width; j++)
+                    {
+                        Color kol = ob.GetPixel(i, j);
+                        int czerw = kol.R;
+                        int ziel = kol.G;
+                        int nieb = kol.B;
+
+                        if (czerw < minInt)
+                        {
+                            minInt = czerw;
+                        }
+                        else if (ziel < minInt)
+                        {
+                            minInt = ziel;
+                        }
+                        else if (nieb < minInt)
+                        {
+                            minInt = nieb;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
+    }
+}
